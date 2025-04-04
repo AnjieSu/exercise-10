@@ -83,6 +83,7 @@ All three migration styles differ in log body mass.
 #### Step 3
 
 ```{r}
+m2 <- aov(log(Mass) ~ Migration, data = d2)
 (posthoc <- TukeyHSD(m2, which = "Migration", conf.level = 0.95))
 ```
 
