@@ -10,6 +10,7 @@ load packages
 library(skimr)
 library(tidyverse)
 library(infer)
+library(stats)
 ```
 
 load data
@@ -46,7 +47,7 @@ m1 <- lm(log(Mass) ~ Trophic.Level, data = d1)
 summary(m1)
 ```
 
-log(Mass) is correlated with trophic Level, and F-statistic could reject the null hypothesis. <br>
+log(Mass) is associated with trophic Level, and F-statistic could reject the null hypothesis. <br>
 
 The reference level is carnivore. Herbivore and scavenger are different in log(mass) than the reference level.
 
@@ -68,7 +69,7 @@ m2 <- lm(log(Mass) ~ Migration, data = d2)
 summary(m2)
 ```
 
-log(Mass) is correlated with migration, and F-statistic could reject the null hypothesis. <br> The reference level is migration1.
+log(Mass) is associated with migration, and F-statistic could reject the null hypothesis. <br> The reference level is migration1.
 
 ```{r}
 d2$Migration <- factor(d2$Migration)
@@ -140,4 +141,65 @@ mod <- lm(log(Range.Size) ~ Migration, data = d_fil)
 summary(mod)
 ```
 
-Range size is correlated with migration style.
+Range size is associated with migration style. 8.67% of variance in the measure of range size is associated with Migration behavior style. <br>
+The reference level is Migration style 1. Both 2 and 3 are different than 1 in log range size.
+
+```{r}
+d_fil$Migration <- factor(d_fil$Migration)
+d_fil$Migration <- relevel(d_fil$Migration, ref = "2")
+
+mod <- lm(log(Range.Size) ~ Migration, data = d_fil)
+summary(mod)
+```
+```{r}
+m <- aov(log(Range.Size) ~ Migration, data = d_fil)
+(posthoc <- TukeyHSD(m, which = "Migration", conf.level = 0.95))
+```
+From the releveled model and Tukey Honest test, all three forms of migration differ significantly.
+
+#### Step 4
+```{r}
+d_pas <- d %>%
+  filter(Order1 == "Passeriformes")
+
+boxplot(RelBeak ~ Primary.Lifestyle, data = d_pas)
+mod1 <- aov(RelBeak ~ Primary.Lifestyle, data = d_pas)
+summary(mod1)
+(posthoc <- TukeyHSD(mod1, which = "Primary.Lifestyle", conf.level = 0.95))
+```
+Relative beak length and primary lifestyle are associated. From the test we could see that except for Terrestrial-Generalist, all the other primary lifestyles differ significantly from each other.
+```{r}
+boxplot(RelBeak ~ Trophic.Level, data = d_pas)
+mod2 <- aov(RelBeak ~ Trophic.Level, data = d_pas)
+summary(mod2)
+(posthoc <- TukeyHSD(mod2, which = "Trophic.Level", conf.level = 0.95))
+```
+Relative beak length and Trophic level are associated. From the test we could see that all the trophic levels differ significantly from each other.
+
+#### Step 5
+```{r}
+mod3 <- lm(RelBeak ~ Primary.Lifestyle + Trophic.Level, data = d_pas)
+summary(mod3)
+```
+Birds that are not aerial tend to have larger beaks than aerial ones. Herbivores tend to have smaller beaks than carnivores, while omnivores are similar to carnivores.
+
+#### Step 6
+```{r}
+mod4 <- lm(RelBeak ~ Primary.Lifestyle + Trophic.Level + Primary.Lifestyle:Trophic.Level, data = d_pas)
+summary(mod4)
+```
+Beak size increases in non-aerial ones, but trophic level modifies this. It is especially for herbivores and omnivores, whose beak sizes depend strongly on what kind of lifestyle they have. In particular, insessorial lifestyle further increases beak size very much in herbivores and omnivores.
+
+#### Step 7
+```{r}
+interaction.plot(x.factor = d_pas$Primary.Lifestyle, xlab = "Primary lifestyle",trace.factor = d_pas$Trophic.Level, trace.label = "Trophic level",  ylab = "Relative beak size", response = d_pas$RelBeak, fun = base::mean)
+```
+
+#### Step 8
+```{r}
+mod2 <- aov(RelBeak ~ Trophic.Level, data = d_pas)
+hist(residuals(mod2)) # looks good (normal)
+boxplot(residuals(mod2) ~ mod2$model$Trophic.Level) # variance looks consistent
+plot(fitted(mod2) ~ residuals(mod2)) # Homoscedasticity check
+```
+The model met all assumptions.
