@@ -109,7 +109,9 @@ visualize(permuted.F) + shade_p_value(obs_stat = original.F$statistic, direction
 ```
 
 ### Challenge 2: two-way anova
+
 #### Step 1
+
 ```{r}
 m1 <- lm(log(Beak.Length_Culmen) ~ log(Mass), data = d)
 d$RelBeak <- residuals(m1)
@@ -119,12 +121,14 @@ d$RelTarsus <- residuals(m2)
 ```
 
 #### Step 2
+
 ```{r}
 boxplot(RelTarsus ~ Primary.Lifestyle, data = d)
 boxplot(RelBeak ~ Trophic.Niche, data = d)
 ```
 
 #### Step 3
+
 ```{r}
 d_fil <- d %>%
   drop_na(Range.Size)
@@ -135,4 +139,5 @@ d_fil$Migration <- as.character(d_fil$Migration)
 mod <- lm(log(Range.Size) ~ Migration, data = d_fil)
 summary(mod)
 ```
-Range size is correlated with migration style. 
+
+Range size is correlated with migration style.
