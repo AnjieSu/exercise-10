@@ -1,0 +1,138 @@
+---
+title: "Exercise-10"
+format: html
+editor: visual
+---
+
+load packages
+
+```{r}
+library(skimr)
+library(tidyverse)
+library(infer)
+```
+
+load data
+
+```{r}
+d <- read.csv("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/AVONETdataset1.csv")
+
+d <- d[c( "Species1", "Family1",  "Order1", "Beak.Length_Culmen","Beak.Width",  "Beak.Depth", "Tarsus.Length", "Wing.Length","Tail.Length", "Mass", "Habitat", "Migration", "Trophic.Level", "Trophic.Niche",  "Primary.Lifestyle", "Min.Latitude", "Max.Latitude",  "Centroid.Latitude", "Centroid.Longitude", "Range.Size")]
+
+skim(d)
+```
+
+Categorical variables are species, family, order, habitat, trophic level, trophic niche, primary lifestyle. Migration should also be a categorical variable.
+
+### Challenge 1: one-way anova
+
+#### Step 1
+
+```{r}
+d1 <- d %>%
+  drop_na(Trophic.Level)
+boxplot(log(Mass) ~ Trophic.Level, data = d1)
+
+d2 <- d %>%
+  drop_na(Migration)
+d2$Migration <- as.character(d2$Migration)
+boxplot(log(Mass) ~ Migration, data = d2)
+```
+
+#### Step 2
+
+```{r}
+m1 <- lm(log(Mass) ~ Trophic.Level, data = d1)
+summary(m1)
+```
+
+log(Mass) is correlated with trophic Level, and F-statistic could reject the null hypothesis. <br>
+
+The reference level is carnivore. Herbivore and scavenger are different in log(mass) than the reference level.
+
+```{r}
+d1$Trophic.Level <- factor(d1$Trophic.Level)
+d1$Trophic.Level <- relevel(d1$Trophic.Level, ref = "Omnivore")
+m1 <- lm(log(Mass) ~ Trophic.Level, data = d1)
+summary(m1)
+
+d1$Trophic.Level <- relevel(d1$Trophic.Level, ref = "Herbivore")
+m1 <- lm(log(Mass) ~ Trophic.Level, data = d1)
+summary(m1)
+```
+
+By using different reference level, we can see that only Carnivore-Omnivore do not differ in log(mass).
+
+```{r}
+m2 <- lm(log(Mass) ~ Migration, data = d2)
+summary(m2)
+```
+
+log(Mass) is correlated with migration, and F-statistic could reject the null hypothesis. <br> The reference level is migration1.
+
+```{r}
+d2$Migration <- factor(d2$Migration)
+d2$Migration <- relevel(d2$Migration, ref = "2")
+m2 <- lm(log(Mass) ~ Migration, data = d2)
+summary(m2)
+```
+
+All three migration styles differ in log body mass.
+
+#### Step 3
+
+```{r}
+(posthoc <- TukeyHSD(m2, which = "Migration", conf.level = 0.95))
+```
+
+All three migration styles differ significantly in log body mass.
+
+#### Step 4
+
+```{r}
+d1 <- d1 %>% mutate(logMass = log(Mass))
+
+original.F <- aov(logMass ~ Trophic.Level, data = d1) %>%
+  broom::tidy() %>%
+  filter(term == "Trophic.Level")
+
+permuted.F <- d1 %>%
+  specify(logMass ~ Trophic.Level) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "F")
+
+(p.value <- permuted.F %>%
+    get_p_value(obs_stat = original.F$statistic, direction = "greater"))
+
+visualize(permuted.F) + shade_p_value(obs_stat = original.F$statistic, direction = "greater")
+```
+
+### Challenge 2: two-way anova
+#### Step 1
+```{r}
+m1 <- lm(log(Beak.Length_Culmen) ~ log(Mass), data = d)
+d$RelBeak <- residuals(m1)
+
+m2 <- lm(log(Tarsus.Length) ~ log(Mass), data = d)
+d$RelTarsus <- residuals(m2)
+```
+
+#### Step 2
+```{r}
+boxplot(RelTarsus ~ Primary.Lifestyle, data = d)
+boxplot(RelBeak ~ Trophic.Niche, data = d)
+```
+
+#### Step 3
+```{r}
+d_fil <- d %>%
+  drop_na(Range.Size)
+
+hist(log(d_fil$Range.Size)) # Transformation needed
+
+d_fil$Migration <- as.character(d_fil$Migration)
+mod <- lm(log(Range.Size) ~ Migration, data = d_fil)
+summary(mod)
+```
+Range size is correlated with migration style. 
